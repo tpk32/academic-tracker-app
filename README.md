@@ -1,7 +1,8 @@
 # Introduction
 
 Android Application that helps you record your performance in various tests across different subjects.
-[Get apk here](https://drive.google.com/file/d/1Ixrcs3YdSDe17hCB40eKGtDTl8yvpmju/view?usp=drive_link)
+[![get-it-on-github](https://github.com/tpk32/academic-tracker-app/assets/101876709/5c8f181c-3baf-4b42-b968-489b12f71d67)](https://github.com/tpk32/academic-tracker-app/releases/download/v1.1.0/AcademicTrackerRelease.apk)
+
 
 ## Features
 
