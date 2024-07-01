@@ -3,7 +3,7 @@
 Android Application that helps you record your performance in various tests across different subjects.
 [![get-it-on-github](https://github.com/tpk32/academic-tracker-app/assets/101876709/5c8f181c-3baf-4b42-b968-489b12f71d67)](https://github.com/tpk32/academic-tracker-app/releases/download/v1.1.0/AcademicTrackerRelease.apk)
 
-
+Checkout the backend server Github repository : [academic-tracker-server](https://github.com/tpk32/academic-tracker-server)
 ## Features
 
 1. Subject Management:
@@ -17,7 +17,7 @@ Android Application that helps you record your performance in various tests acro
 	* See a list of all added tests with their details
 
 ## UI Shots
-![1](https://github.com/tpk32/academic-tracker-app/assets/101876709/55905f4f-429a-4b84-9b53-c26f2c2576e5)
-![2](https://github.com/tpk32/academic-tracker-app/assets/101876709/eaa465a9-dbfb-47ad-a482-a5ef9cd831cc)
+![1_1](https://github.com/tpk32/academic-tracker-app/assets/101876709/212b696a-5880-4eed-b0b3-a16b568de596)
+![2_1](https://github.com/tpk32/academic-tracker-app/assets/101876709/5bace51d-5402-469b-9fd0-6c4e9e36f553)
 ![3](https://github.com/tpk32/academic-tracker-app/assets/101876709/186b68b7-a5c2-4a4c-bece-ad96eb586e91)
-![4](https://github.com/tpk32/academic-tracker-app/assets/101876709/e9b5efdd-2116-40c5-828a-d6e03fae7061)
+![4_1](https://github.com/tpk32/academic-tracker-app/assets/101876709/d3b3bd0e-431e-42f6-93f3-3d747b0524c3)
