@@ -35,15 +35,16 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tpkprojects.academictracker.MainViewModel
 import com.tpkprojects.academictracker.dataModel.Test
 import com.tpkprojects.academictracker.dataModel.Converters
+import com.tpkprojects.academictracker.dataModel.TestWithSubject
 import com.tpkprojects.academictracker.dataModel.myConverter
 
 @Composable
 fun TestView(viewModel: MainViewModel){
-    val allTestList: State<List<Test>>
+    val allTestList: State<List<TestWithSubject>>
     val allSubjectTestList: State<List<Test>>
 
-    allTestList= viewModel.allTests.collectAsState(initial = listOf())
-    if(viewModel.currentSubject.value != "Home") viewModel.getTestsById(viewModel.currentSubject.value)
+    allTestList= viewModel.allTestsWithSubject.collectAsState(initial = listOf())
+    if(viewModel.currentSubject.value != "Home") viewModel.getTestsBySubjectName(viewModel.currentSubject.value)
     allSubjectTestList = viewModel.testsById.collectAsState(initial = listOf())
 
     LazyColumn(
@@ -53,8 +54,14 @@ fun TestView(viewModel: MainViewModel){
         items(if(viewModel.currentSubject.value == "Home") allTestList.value
             else allSubjectTestList.value
         ){
-            test->
-            TestItem(test, viewModel)
+            item->
+            if(viewModel.currentSubject.value == "Home"){
+                item as TestWithSubject
+                TestItem(item.test, item.subjectName, viewModel)
+            }else{
+                item as Test
+                TestItem(item, "",viewModel)
+            }
         }
     }
     when {
@@ -65,7 +72,7 @@ fun TestView(viewModel: MainViewModel){
                 },
                 confirmButton = {
                     viewModel.testAlertDialog.value = false
-                    viewModel.deleteTestById()
+                    viewModel.deleteTest()
                     viewModel.selectedTestforDelete.value = null
                 },
                 dialogTitle = "Confirm Deletion of Test",
@@ -77,7 +84,8 @@ fun TestView(viewModel: MainViewModel){
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TestItem(test : Test, viewModel: MainViewModel){
+fun TestItem(test: Test, subjectName: String, viewModel: MainViewModel){
+
     val dtconverter = myConverter()
     Card(
         modifier = Modifier
@@ -102,7 +110,7 @@ fun TestItem(test : Test, viewModel: MainViewModel){
             .fillMaxWidth()){
             if(viewModel.currentSubject.value == "Home"){
                 Text(
-                    text = test.subjectName,
+                    text = subjectName,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Left,
                     color = MaterialTheme.colorScheme.primary,

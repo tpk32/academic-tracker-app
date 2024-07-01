@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Academic Tracker</string>
+    <string name="app_id">com.tpkprojects.academictracker</string>
+    <string name="web_client_id">1020475475122-74rktos3a8hrpe669pe4ugvk1eu1ut7d.apps.googleusercontent.com</string>
 </resources>

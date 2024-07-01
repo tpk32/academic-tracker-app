@@ -1,6 +1,13 @@
 package com.tpkprojects.academictracker.ui.appviews
 
+import android.content.Intent
 import android.graphics.PointF
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Icon
-import androidx.compose.material.icons.materialIcon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,24 +36,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.plus
 import androidx.core.graphics.times
@@ -55,14 +62,19 @@ import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.navOptions
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.GoogleAuthProvider
 import com.tpkprojects.academictracker.MainViewModel
 import com.tpkprojects.academictracker.R
 import com.tpkprojects.academictracker.Screen
-import com.tpkprojects.academictracker.dataModel.User
-import com.tpkprojects.academictracker.ui.theme.ThemeColors.Dark.background
-import com.tpkprojects.academictracker.ui.theme.ThemeColors.Dark.primary
+import com.tpkprojects.academictracker.apiService.ApiViewModel
+import com.tpkprojects.academictracker.apiService.apiService
+import com.tpkprojects.academictracker.dataModel.Student
+import com.tpkprojects.academictracker.presentation.signIn.AuthViewModel
+import com.tpkprojects.academictracker.presentation.signIn.handleFirebaseToken
+import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -82,6 +94,74 @@ internal fun directionVectorPointF(angleRadians: Float) =
 @Composable
 fun UserLoginView(viewModel:MainViewModel){
 
+
+    val authViewModel = viewModel<AuthViewModel>()
+    val apiViewModel = viewModel<ApiViewModel>()
+    var loggedIn = authViewModel.loggedIn.asStateFlow()
+    var response = apiViewModel.response.asStateFlow()
+    val context = LocalContext.current
+
+    when{
+        authViewModel.progressBarVisible.value->
+            ShowLoadingDialog()
+    }
+    when{
+        apiViewModel.progressBarVisible.value->
+            ShowLoadingDialog()
+    }
+
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.StartActivityForResult()){
+        val task = GoogleSignIn.getSignedInAccountFromIntent(it.data)
+        try{
+            authViewModel.setProgressBarVisible(true)
+            val account = task.getResult(ApiException::class.java)
+            //val idToken = account.idToken //no need right now
+            val credential = GoogleAuthProvider.getCredential(account.idToken!!, null)
+            authViewModel.signWithCredential(credential)
+            Log.d("logintag", "firebaseAuthWithGoogle:" + account.id)
+
+            //handleFirebaseToken(apiViewModel)
+        } catch (e: ApiException) {
+            Log.w("logintag", "Google sign in failed", e)
+            authViewModel.setProgressBarVisible(false)
+            authViewModel.triggerToast("Login Failed")
+        }
+    }
+
+    // get firebase token after succesful googleCLient login
+    LaunchedEffect (loggedIn){
+        loggedIn.collect {
+            if(loggedIn.value == true ){
+
+                Log.d("logintag", "lf start")
+                handleFirebaseToken(apiViewModel)
+                authViewModel.setLoggedInState(false)
+                Log.d("logintag", "lf end")
+
+                //closes whole login time progress bar
+                authViewModel.setProgressBarVisible(false)
+            }
+        }
+    }
+
+    // get api response after result from firebase token sent to backend
+    LaunchedEffect(response) {
+        response.collect {
+            if (response.value != null) {
+                apiViewModel.setProgressBarVisible(true)
+                viewModel.addStudent(response.value!!.Data)
+                if (response.value!!.Message == "Student exists") {
+                    Log.d("usermsg", "api response")
+                    apiViewModel.fetchData(response.value!!.Data.studentId)
+                    apiViewModel.resetResponse()
+                    viewModel.setCurrentScreen(Screen.BottomScreen.Summary.route)
+                }
+                apiViewModel.resetResponse()
+                apiViewModel.setProgressBarVisible(false)
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -89,17 +169,36 @@ fun UserLoginView(viewModel:MainViewModel){
     ){
         Column() {
             TopBox(modifier=Modifier.weight(2f))
-            BottomBox(modifier=Modifier.weight(3f), viewModel)
+            BottomBox(modifier=Modifier.weight(3f), viewModel, launcher)
+        }
+    }
+
+    //Launched Effect for catching toast
+    LaunchedEffect(authViewModel.toastEvent){
+        authViewModel.toastEvent.collect{
+            if(it!=null){
+                Toast.makeText(context, it.message, Toast.LENGTH_LONG).show()
+                authViewModel.setToastEvent(null)
+            }
+        }
+    }
+    LaunchedEffect(apiViewModel.toastEvent){
+        apiViewModel.toastEvent.collect{
+            if(it!=null){
+                Toast.makeText(context, it.message, Toast.LENGTH_LONG).show()
+                apiViewModel.setToastEvent(null)
+            }
         }
     }
 }
 
 @Composable
-fun BottomBox(modifier : Modifier, viewModel: MainViewModel){
+fun BottomBox(modifier : Modifier, viewModel: MainViewModel, launcher : ManagedActivityResultLauncher<Intent, ActivityResult>){
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
     ){
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -107,11 +206,11 @@ fun BottomBox(modifier : Modifier, viewModel: MainViewModel){
         ) {
 //            EmailTextField()
 //            PasswordTextField()
-//            LoginButton(viewModel)
-//            OrDivider()
+            LoginButton(viewModel, launcher)
+            OrDivider()
             GuestLoginButton(viewModel)
 
-           // Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(128.dp))
         }
     }
 }
@@ -247,20 +346,30 @@ fun PasswordTextField(){
 }
 
 @Composable
-fun LoginButton(viewModel: MainViewModel){
+fun LoginButton(viewModel: MainViewModel, launcher : ManagedActivityResultLauncher<Intent, ActivityResult>){
+
+    val context = LocalContext.current
+    val token = stringResource(R.string.web_client_id)
+
     Button(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 32.dp, end = 32.dp, top = 16.dp),
         onClick = {
-            //viewModel.currentScreen.value = Screen.BottomScreen.Summary.route
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(token)
+                .requestEmail()
+                .build()
+
+            val googleSignInClient = GoogleSignIn.getClient(context, gso)
+            launcher.launch(googleSignInClient.signInIntent)
         },
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.tertiary,
             contentColor = MaterialTheme.colorScheme.onTertiary
         )
     ){
-        Text("Login", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        Text("Login With Google", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -291,8 +400,8 @@ fun GuestLoginButton(viewModel: MainViewModel){
             .padding(start = 32.dp, end = 32.dp, top = 16.dp)
             .clip(RoundedCornerShape(10.dp)),
         onClick = {
-            val guestUser = User(userId = "##", name = "Guest", email = "none")
-            viewModel.addUser(guestUser)
+            val guestStudent = Student(studentId = "##", name = "Guest", email = "noEmail")
+            viewModel.addStudent(guestStudent)
             viewModel.setCurrentScreen(Screen.BottomScreen.Summary.route)
         },
         shape = RectangleShape,
@@ -310,6 +419,7 @@ fun GuestLoginButton(viewModel: MainViewModel){
         )
     }
 }
+
 //@Preview
 //@Composable
 //fun DefaultUserLoginView(){

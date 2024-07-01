@@ -6,10 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.tpkprojects.academictracker.dataModel.User
 import com.tpkprojects.academictracker.ui.appviews.StartView
 import com.tpkprojects.academictracker.ui.appviews.UserLoginView
 import com.tpkprojects.academictracker.ui.theme.AcademicTrackerTheme
@@ -18,6 +15,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             AcademicTrackerTheme {
                 val viewModel: MainViewModel = viewModel()
@@ -27,11 +25,11 @@ class MainActivity : ComponentActivity() {
                 // 2 -> MainView
 
                 LaunchedEffect(Unit){
-                    val userDao = Graph.database.userDao()
+                    val userDao = Graph.database.studentDao()
                     Log.d("shuru", "database")
-                    viewModel.setUser(userDao.getUser())
+                    viewModel.setStudent(userDao.getStudent())
 
-                    val hasUser = (viewModel.user.value !=null )
+                    val hasUser = (viewModel.student.value !=null )
 
                     Log.d("shuru", "emitting")
                     if(hasUser){

@@ -143,8 +143,9 @@ fun SubjectDialogButtons(viewModel: MainViewModel){
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ){
-        SubjectConfirmButton(viewModel = viewModel)
         SubjectDismissButton(viewModel = viewModel)
+        SubjectConfirmButton(viewModel = viewModel)
+
     }
 }
 

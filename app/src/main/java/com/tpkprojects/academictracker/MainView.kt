@@ -1,6 +1,7 @@
 package com.tpkprojects.academictracker
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,17 +59,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.tpkprojects.academictracker.ui.appviews.AddTestDialog
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.tpkprojects.academictracker.apiService.ApiViewModel
 import com.tpkprojects.academictracker.ui.appviews.ShowAlertDialog
-import com.tpkprojects.academictracker.ui.appviews.UserLoginView
+import com.tpkprojects.academictracker.ui.appviews.ShowLoadingDialog
 import com.tpkprojects.academictracker.ui.appviews.triggerAddSubjectDialog
 import com.tpkprojects.academictracker.ui.appviews.triggerAddTestDialog
 import kotlinx.coroutines.CoroutineScope
@@ -83,6 +88,8 @@ fun MainView(viewModel: MainViewModel) {
     val scope: CoroutineScope = rememberCoroutineScope()
     val drawerState:DrawerState = rememberDrawerState(initialValue=DrawerValue.Closed)
     val navController: NavHostController = rememberNavController()
+    val apiViewModel : ApiViewModel = ApiViewModel()
+    val context = LocalContext.current
 
     LaunchedEffect(viewModel.snackbarEvent){
         viewModel.snackbarEvent.collect { event ->
@@ -137,6 +144,7 @@ fun MainView(viewModel: MainViewModel) {
     }
 
     val bottomBar: @Composable () -> Unit = {
+
         NavigationBar(
             Modifier.wrapContentSize(),
             containerColor = MaterialTheme.colorScheme.background,
@@ -164,22 +172,48 @@ fun MainView(viewModel: MainViewModel) {
                     label = { Text(text = item.bTitle) }
                 )
             }
+
         }
     }
 
     val floatingActionButton : @Composable () -> Unit = {
-        FloatingActionButton(
-            modifier = Modifier.padding(all = 20.dp),
-            contentColor = MaterialTheme.colorScheme.onTertiary,
-            containerColor = MaterialTheme.colorScheme.tertiary,
-            onClick = {
-                viewModel.addTestDialogOpen.value = true
+        val allSubjectsList = viewModel.getSubjectsByStudentId.collectAsState(initial = listOf())
+        val allTestList = viewModel.allTestsWithSubject.collectAsState(initial = listOf())
+
+        Column {
+            if (viewModel.student.value!!.name != "Guest") {
+                FloatingActionButton(
+                    modifier = Modifier.size(40.dp, 40.dp),
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    onClick = {
+                        apiViewModel.syncToBackend(
+                            viewModel.student.value!!,
+                            allSubjectsList.value,
+                            allTestList.value
+                        )
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_cloudsync),
+                        contentDescription = "sync"
+                    )
+                }
             }
-        ) {
-            Icon(
+
+            FloatingActionButton(
+                modifier = Modifier.padding(top = 8.dp),
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                onClick = {
+                    viewModel.addTestDialogOpen.value = true
+                }
+            ) {
+                Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add Test",
-            )
+                    contentDescription = "Add Test"
+                )
+            }
         }
     }
 
@@ -218,9 +252,20 @@ fun MainView(viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .fillMaxHeight()
             ) {
-                Log.d("homev", "calling")
+                LaunchedEffect(apiViewModel.toastEvent){
+                    apiViewModel.toastEvent.collect{
+                        if(it!=null){
+                            Toast.makeText(context, it.message, Toast.LENGTH_LONG).show()
+                            apiViewModel.setToastEvent(null)
+                        }
+                    }
+                }
+
+                when{
+                    apiViewModel.progressBarVisible.value->
+                        ShowLoadingDialog("Syncing to Cloud")
+                }
                 Navigation(navController = navController, viewModel = viewModel)
-                Log.d("homev", "called")
                 triggerAddTestDialog(viewModel = viewModel)
 
             }
@@ -230,7 +275,7 @@ fun MainView(viewModel: MainViewModel) {
 
 @Composable
 fun Drawer(viewModel: MainViewModel, drawerState: DrawerState, scope:CoroutineScope){
-    val allSubjectsList = viewModel.getSubjectsByUserId.collectAsState(initial = listOf())
+    val allSubjectsList = viewModel.getSubjectsByStudentId.collectAsState(initial = listOf())
 
     ModalDrawerSheet {
         Column(){
@@ -371,6 +416,16 @@ fun Drawer(viewModel: MainViewModel, drawerState: DrawerState, scope:CoroutineSc
 
 @Composable
 fun AccountMenu(viewModel: MainViewModel, navController:NavHostController){
+
+    val token = stringResource(R.string.web_client_id)
+
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(token)
+        .requestEmail()
+        .build()
+
+    val googleSignInClient = GoogleSignIn.getClient(LocalContext.current, gso)
+
     DropdownMenu(
         modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         expanded = viewModel.accountExpanded.value,
@@ -379,7 +434,12 @@ fun AccountMenu(viewModel: MainViewModel, navController:NavHostController){
             DropdownMenuItem(onClick = {},
                 enabled = false
             ) {
-                Text(viewModel.user.value!!.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                Text(viewModel.student.value!!.name, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+            }
+            DropdownMenuItem(onClick = {},
+                enabled = false
+            ) {
+                Text(viewModel.student.value!!.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
             DropdownMenuItem(onClick = {
                 viewModel.userAlertDialog.value = true
@@ -400,11 +460,15 @@ fun AccountMenu(viewModel: MainViewModel, navController:NavHostController){
                 confirmButton = {
                     viewModel.userAlertDialog.value = false
                     viewModel.deleteUser()
+                    viewModel.setStudent(null)
+                    Firebase.auth.signOut()
+                    googleSignInClient.signOut()
                     viewModel.setFirstView(1)
-                    viewModel.setCurrentScreen(Screen.UserLoginScreen.route)
+                    Log.d("user", "${viewModel.student.value?.name}")
                     navController.navigate(Screen.BottomScreen.Summary.route) {
                         popUpToTop(navController)
                     }
+                    viewModel.setCurrentScreen(Screen.UserLoginScreen.route)
                 },
                 dialogTitle = "Confirm Logout",
                 dialogText = "This will delete all your locally stored data but data on server will remain. Are you sure you want to continue?"
@@ -412,6 +476,7 @@ fun AccountMenu(viewModel: MainViewModel, navController:NavHostController){
         }
     }
 }
+
 
 //
 //@Preview(showBackground = true)

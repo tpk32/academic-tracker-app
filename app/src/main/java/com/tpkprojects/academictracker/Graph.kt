@@ -10,7 +10,7 @@ object Graph{
     lateinit var database: AcademicDatabase
 
     val academicRepository by lazy{
-        AcademicRepository(database.userDao(), database.subjectDao(), database.testDao(), database.academicDao())
+        AcademicRepository(database.studentDao(), database.subjectDao(), database.testDao(), database.academicDao())
     }
 
     fun provide(context: Context){

@@ -1,18 +1,9 @@
 package com.tpkprojects.academictracker
 
 import android.app.Application
-import android.view.KeyEvent.DispatcherState
-import com.tpkprojects.academictracker.Graph.database
-import com.tpkprojects.academictracker.dataModel.AcademicDatabase
-import com.tpkprojects.academictracker.dataModel.Converters
-import com.tpkprojects.academictracker.dataModel.Subject
-import com.tpkprojects.academictracker.dataModel.Test
-import com.tpkprojects.academictracker.dataModel.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 class AcademicTrackerApp:Application() {
     override fun onCreate(){

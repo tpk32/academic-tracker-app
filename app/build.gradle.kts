@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("kotlin-kapt")
+    alias(libs.plugins.google.gms.google.services)
+
 }
 
 android {
@@ -52,9 +54,24 @@ android {
 }
 
 dependencies {
+    //Compose ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+
+    //Network calls
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+
+    //Json to Kotlin object mapping
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    //Image loading
+    implementation("io.coil-kt:coil-compose:2.4.0")
 
     implementation(libs.androidx.graphics.shapes.android)
     implementation ("androidx.constraintlayout:constraintlayout-compose:1.0.1")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation(libs.firebase.auth)
+    implementation(libs.androidx.lifecycle.runtime.compose.android)
     val room_version = "2.6.1"
     val nav_version = "2.7.5"
 

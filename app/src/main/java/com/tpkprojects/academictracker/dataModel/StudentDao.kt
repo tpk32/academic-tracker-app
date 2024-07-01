@@ -5,17 +5,16 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface UserDao {
+interface StudentDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertUser(user: User)
+    suspend fun insertStudent(student: Student)
 
-    @Query("SELECT * FROM User")
-    suspend fun getUser(): User?
+    @Query("SELECT * FROM Student")
+    suspend fun getStudent(): Student?
 
     @Delete
-    suspend fun deleteUser(user: User)
+    suspend fun deleteStudent(student: Student)
 
 }

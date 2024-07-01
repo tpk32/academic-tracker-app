@@ -1,31 +1,22 @@
 package com.tpkprojects.academictracker
 
 import android.util.Log
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.tpkprojects.academictracker.Graph.database
 import com.tpkprojects.academictracker.dataModel.AcademicRepository
 import com.tpkprojects.academictracker.dataModel.Converters
 import com.tpkprojects.academictracker.dataModel.ShortTestData
 import com.tpkprojects.academictracker.dataModel.Subject
 import com.tpkprojects.academictracker.dataModel.Test
-import com.tpkprojects.academictracker.dataModel.User
+import com.tpkprojects.academictracker.dataModel.Student
+import com.tpkprojects.academictracker.dataModel.TestWithSubject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
@@ -45,7 +36,7 @@ class MainViewModel(
 
     fun deleteUser(){
         viewModelScope.launch(){
-            academicRepository.deleteUser(user.value!!)
+            academicRepository.deleteStudent(student.value!!)
         }
     }
 
@@ -77,29 +68,27 @@ class MainViewModel(
     var userAlertDialog = mutableStateOf(false)
     var subjectAlertDialog = mutableStateOf(false)
 
-
     // HomeView items ---------------------------------------------------.
 
-    private var _user = mutableStateOf<User?>(null)
-    val user: MutableState<User?> get() = _user
-    fun getUser(){
+    private var _student = mutableStateOf<Student?>(null)
+    val student: MutableState<Student?> get() = _student
+    fun getStudent(){
         viewModelScope.launch {
-            _user.value = academicRepository.getUser()
+            _student.value = academicRepository.getStudent()
         }
     }
-    fun setUser(user:User?){
-        _user.value = user
+    fun setStudent(student:Student?){
+        _student.value = student
     }
 
     // this adds the user and gets its value in one goadd
-    fun addUser(user:User){
+    fun addStudent(student:Student){
         viewModelScope.launch(){
-            academicRepository.addUser(user)
-            _user.value = academicRepository.getUser()
-            Log.d("usermsg", "${_user.value!!}")
-            setFirstView(2)
+            academicRepository.addStudent(student)
+            _student.value = academicRepository.getStudent()
+            Log.d("usermsg", "${_student.value!!}")
             initialiseModel()
-
+            setFirstView(2)
         }
     }
 
@@ -142,7 +131,7 @@ class MainViewModel(
     val subjectPercentage: Flow<Double?> get() = _subjectPercentage
     fun getAvgPercentageInSubject(subjectId: String){
         viewModelScope.launch {
-            _subjectPercentage = academicRepository.getSubjectPercentage(user.value!!.userId, subjectId)
+            _subjectPercentage = academicRepository.getSubjectPercentage(student.value!!.studentId, subjectId)
         }
     }
 
@@ -150,7 +139,7 @@ class MainViewModel(
     val testCountForSubject: Flow<Int?> get() = _testCountForSubject
     fun getTestCountForSubject(subjectId: String){
         viewModelScope.launch {
-            _testCountForSubject= academicRepository.getTestCountForSubject(user.value!!.userId, subjectId)
+            _testCountForSubject= academicRepository.getTestCountForSubject(student.value!!.studentId, subjectId)
         }
     }
 
@@ -158,7 +147,7 @@ class MainViewModel(
     val subjectLastTestData: Flow<ShortTestData?> get() = _subjectLastTestData
     fun getSubjectLastTestData(subjectId: String){
         viewModelScope.launch {
-            _subjectLastTestData = academicRepository.getSubjectLastTestData(user.value!!.userId, subjectId)
+            _subjectLastTestData = academicRepository.getSubjectLastTestData(student.value!!.studentId, subjectId)
         }
     }
 
@@ -166,24 +155,24 @@ class MainViewModel(
     val subjectFirstTestData: Flow<ShortTestData?> get() = _subjectFirstTestData
     fun getSubjectFirstTestData(subjectId: String){
         viewModelScope.launch {
-            _subjectFirstTestData = academicRepository.getSubjectFirstTestData(user.value!!.userId, subjectId)
+            _subjectFirstTestData = academicRepository.getSubjectFirstTestData(student.value!!.studentId, subjectId)
         }
     }
 
 
     //TestView Items---------------------------------------------------------------->
 
-    var allTests : Flow<List<Test>> = emptyFlow()
-    fun getAllTests(userId: String) {
+    var allTestsWithSubject : Flow<List<TestWithSubject> > = emptyFlow()
+    fun getAllTests(studentId: String) {
         viewModelScope.launch {
-            allTests = academicRepository.getAllTests(userId)
+            allTestsWithSubject = academicRepository.getAllTests(studentId)
         }
     }
 
     var testsById: Flow<List<Test>> = emptyFlow()
-    fun getTestsById(subjectName: String){
+    fun getTestsBySubjectName(subjectName: String){
         viewModelScope.launch(){
-            testsById = academicRepository.getTestsById("${user.value!!.userId}-${subjectName}")
+            testsById = academicRepository.getTestsBySubjectName(student.value!!.studentId,subjectName)
         }
     }
 
@@ -192,22 +181,20 @@ class MainViewModel(
     fun setSelectedTestForDelete(test: Test?){
         _selectedTestForDelete.value = test
     }
-    fun deleteTestById(test: Test = _selectedTestForDelete.value!!){
+    fun deleteTest(test: Test = _selectedTestForDelete.value!!){
         viewModelScope.launch(){
-            academicRepository.deleteTestById(test.uniqueSubjectId, test.testID)
+            val subjectName = academicRepository.getSubjectNameBySubjectId(student.value!!.studentId, test.subjectId)
+            academicRepository.deleteTest(student.value!!.studentId, subjectName!!, test)
         }
     }
-
 
     //Drawer Items --------------------------------------------------------------->
 
 
-    var getSubjectsByUserId: Flow<List<Subject>> = flowOf(listOf())
-    fun getSubjectsByUserId(){
+    var getSubjectsByStudentId: Flow<List<Subject>> = flowOf(listOf())
+    fun getSubjectsByStudentId(){
         viewModelScope.launch {
-            Log.d("usermsg", "subject List")
-            getSubjectsByUserId = academicRepository.getSubjectsByUserId(user.value!!.userId)
-            Log.d("usermsg", "list end")
+            getSubjectsByStudentId = academicRepository.getSubjectsByStudentId(student.value!!.studentId)
         }
     }
 
@@ -218,7 +205,7 @@ class MainViewModel(
     }
     fun deleteSubject(subject: Subject = selectedSubjectForDelete.value!!){
         viewModelScope.launch(){
-            academicRepository.deleteSubject(subject)
+            academicRepository.deleteSubject(student.value!!.studentId, subject)
         }
     }
 
@@ -275,17 +262,16 @@ class MainViewModel(
     private var _addTestResponse:MutableState<Long> = mutableStateOf(-10L)
     val addTestResponse: MutableState<Long> get() = _addTestResponse
     fun addTest(callback: (Long)->Unit): Long{
-        val test = Test(
-            uniqueSubjectId = "${(user.value)!!.userId}-${subjectSelectedOption.value}",
-            subjectName = subjectSelectedOption.value,
-            testName = addTestDialogTTState.value,
-            testDate = pickedDate.value,
-            maxMarks = addTestDialogMMState.value.toInt(),
-            obtainedMarks = addTestDialogMOState.value.toInt()
-        )
+        val subjectName = subjectSelectedOption.value
         setProgressBarVisible(true)
         viewModelScope.launch(Dispatchers.IO){
-            _progressBarVisible.value = true
+            val test = Test(
+                testName = addTestDialogTTState.value,
+                testDate = pickedDate.value,
+                maxMarks = addTestDialogMMState.value.toInt(),
+                obtainedMarks = addTestDialogMOState.value.toInt() ,
+                subjectId = academicRepository.getSubjectIdBySubjectName(student.value!!.studentId, subjectName)!!
+            )
             val response = academicRepository.addTest(test)
             callback(response)
             setProgressBarVisible(false)
@@ -315,7 +301,10 @@ class MainViewModel(
     val addSubjectResponse: MutableState<Long> get() = _addSubjectResponse
 
     fun addSubject(callback: (Long)->Unit){
-        val subject = Subject("${(user.value!!.userId)}-${addSubjectDialogTFState.value}", (user.value!!.userId), addSubjectDialogTFState.value)
+        val subject = Subject(
+            studentId = (student.value!!.studentId),
+            subjectName = addSubjectDialogTFState.value
+        )
         _progressBarVisible.value = true
         viewModelScope.launch(){
             val response = academicRepository.addSubject(subject)
@@ -356,11 +345,11 @@ class MainViewModel(
     //Flow items -------------------------------------------------------------------->
 
     fun initialiseModel(){
-        getSubjectsByUserId()
-        getAllTests(user.value!!.userId)
-        getAveragePercentage(user.value!!.userId)
-        getTestCount(user.value!!.userId)
-        getSubjectWithMostTests(user.value!!.userId)
-        getLatestTestDate(user.value!!.userId)
+        getSubjectsByStudentId()
+        getAllTests(student.value!!.studentId)
+        getAveragePercentage(student.value!!.studentId)
+        getTestCount(student.value!!.studentId)
+        getSubjectWithMostTests(student.value!!.studentId)
+        getLatestTestDate(student.value!!.studentId)
     }
 }
